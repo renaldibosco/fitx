@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">FitX</string>
+    <string name="title_activity_main">FitX</string>
+    <string name="package_name">com.renaldibosco.fitx</string>
+    <string name="custom_url_scheme">com.renaldibosco.fitx</string>
+</resources>
