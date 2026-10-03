@@ -42,7 +42,8 @@ jobs:
           code=$?
           set -e
           if [ $code -ne 0 ]; then
-            grep -vE "^> Task|^$" build.log | head -45 | while IFS= read -r line; do echo "::error::${line:0:900}"; done
+            echo "::error::$(sed -n '/What went wrong/,/Try:/p' build.log | tr '\n' ' ' | cut -c1-3000)"
+            echo "::error::$(grep -iE 'error:|e: |exception' build.log | head -8 | tr '\n' ' ' | cut -c1-3000)"
             tail -60 build.log
             exit 1
           fi
