@@ -1,4 +1,4 @@
-// Noora — native bridges with web fallbacks
+// NrXFitz — native bridges with web fallbacks
 const Cap = window.Capacitor;
 export const isNative = !!(Cap && Cap.isNativePlatform && Cap.isNativePlatform());
 const plug = name => (Cap && Cap.Plugins && Cap.Plugins[name]) || null;
@@ -54,7 +54,7 @@ export async function exportJSON(filename, text) {
   const FS = plug('Filesystem'), SH = plug('Share');
   if (isNative && FS && SH) {
     const r = await FS.writeFile({ path: filename, data: text, directory: 'CACHE', encoding: 'utf8' });
-    await SH.share({ title: 'Noora backup', text: 'Noora workout backup', url: r.uri, dialogTitle: 'Save or send your backup' });
+    await SH.share({ title: 'NrXFitz backup', text: 'NrXFitz workout backup', url: r.uri, dialogTitle: 'Save or send your backup' });
     return true;
   }
   const blob = new Blob([text], { type: 'application/json' });
@@ -78,4 +78,75 @@ export async function setupNativeChrome(onBack) {
     if (SB) { await SB.setBackgroundColor({ color: '#0A0B0D' }); await SB.setStyle({ style: 'DARK' }); }
   } catch (e) { /* ignore */ }
   try { const App = plug('App'); App && App.addListener('backButton', () => onBack(() => App.exitApp())); } catch (e) { /* ignore */ }
+}
+
+// ---------- voice
+export async function speak(text, lang = 'en-IN', rate = 1.0) {
+  if (!text) return;
+  const TTS = plug('TextToSpeech');
+  try {
+    if (isNative && TTS) { await TTS.stop().catch(() => {}); await TTS.speak({ text, lang, rate, pitch: 1.0, volume: 1.0, category: 'playback' }); return; }
+    if ('speechSynthesis' in window) { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = lang; u.rate = rate; speechSynthesis.speak(u); }
+  } catch (e) { console.warn('tts', e); }
+}
+export async function stopSpeaking() {
+  try { const TTS = plug('TextToSpeech'); if (isNative && TTS) await TTS.stop(); else window.speechSynthesis?.cancel(); } catch (e) { /* ignore */ }
+}
+export function canListen() {
+  return (isNative && !!plug('SpeechRecognition')) || !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+export async function listen(lang = 'en-IN') {
+  const SR = plug('SpeechRecognition');
+  if (isNative && SR) {
+    const av = await SR.available().catch(() => ({ available: false }));
+    if (!av.available) throw new Error('Speech recognition is not available on this phone. Install or update the Google app.');
+    const perm = await SR.checkPermissions().catch(() => ({}));
+    if (perm.speechRecognition !== 'granted') { const r = await SR.requestPermissions(); if (r.speechRecognition !== 'granted') throw new Error('Microphone permission denied'); }
+    const res = await SR.start({ language: lang, maxResults: 1, prompt: 'Ask your coach…', partialResults: false, popup: true });
+    return (res?.matches || [])[0] || '';
+  }
+  const W = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!W) throw new Error('Voice input is not supported here — type your question instead.');
+  return new Promise((resolve, reject) => {
+    const r = new W(); r.lang = lang; r.interimResults = false; r.maxAlternatives = 1;
+    r.onresult = e => resolve(e.results[0][0].transcript); r.onerror = e => reject(new Error(e.error)); r.onend = () => resolve('');
+    r.start();
+  });
+}
+
+// ---------- http (native bypasses CORS)
+export async function postJSON(url, headers, body) {
+  const H = plug('CapacitorHttp');
+  if (isNative && H) {
+    const r = await H.request({ method: 'POST', url, headers: { 'content-type': 'application/json', ...headers }, data: body, connectTimeout: 20000, readTimeout: 45000 });
+    return { status: r.status, data: typeof r.data === 'string' ? JSON.parse(r.data || '{}') : r.data };
+  }
+  const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
+  return { status: r.status, data: await r.json().catch(() => ({})) };
+}
+
+// ---------- reminders
+const REMIND_BASE = 7100;
+export async function scheduleReminders(days, time, title, body) {
+  const LN = plug('LocalNotifications'); if (!isNative || !LN) return false;
+  try {
+    const p = await LN.checkPermissions(); if (p.display !== 'granted') { const r = await LN.requestPermissions(); if (r.display !== 'granted') return false; }
+    await LN.cancel({ notifications: [1, 2, 3, 4, 5, 6, 7].map(i => ({ id: REMIND_BASE + i })) }).catch(() => {});
+    if (!days.length) return true;
+    const [hour, minute] = time.split(':').map(Number);
+    // Capacitor weekday: 1 = Sunday … 7 = Saturday; ours: 0 = Monday … 6 = Sunday
+    const notifications = days.map(d => { const wd = d === 6 ? 1 : d + 2; return { id: REMIND_BASE + wd, title, body, schedule: { on: { weekday: wd, hour, minute }, allowWhileIdle: true } }; });
+    await LN.schedule({ notifications });
+    return true;
+  } catch (e) { console.warn(e); return false; }
+}
+
+// ---------- widget data (read by the Android home-screen widget)
+export async function pushWidget(data) {
+  try {
+    const Pref = plug('Preferences'); const WB = plug('WidgetBridge');
+    if (!isNative || !Pref) return;
+    await Pref.set({ key: 'widget', value: JSON.stringify(data) });
+    if (WB) await WB.refresh().catch(() => {});
+  } catch (e) { /* ignore */ }
 }

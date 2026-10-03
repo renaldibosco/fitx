@@ -1,4 +1,4 @@
-// Noora — exercise library and program templates
+// NrXFitz — exercise library and program templates
 // Row: [id, name, primary muscle, secondary muscles, equipment, pattern, coaching cues ("|" separated)]
 const RAW = [
   // ---- Chest / horizontal push
@@ -92,9 +92,16 @@ const RAW = [
   ['shadow_box', 'Shadow Boxing', 'cardio', 'shoulders, core', 'bodyweight', 'conditioning', 'Fighting stance, hands up|Jab, cross, hooks — stay light|Log minutes as reps'],
   ['farmer_walk', 'Farmer\'s Carry', 'forearms', 'core, traps', 'dumbbell', 'conditioning', 'Heavy bells at your sides|Walk tall with short steps|Log seconds as reps'],
   ['db_shrug', 'Dumbbell Shrug', 'back', 'forearms', 'dumbbell', 'h_pull', 'Bells at your sides|Shrug straight up toward the ears|Pause, lower slowly'],
+  // ---- Fight / Muay Thai (no-jump friendly)
+  ['thai_knees', 'Muay Thai Knee Strikes', 'core', 'quads, hip flexors', 'bodyweight', 'conditioning', 'Hands up as if holding a clinch|Drive the knee up and forward, hips through|Alternate sides — log minutes as reps'],
+  ['teep_kick', 'Teep (Push Kick)', 'core', 'glutes, quads', 'bodyweight', 'conditioning', 'Lift the knee high first|Push the ball of the foot straight forward, hips forward|Snap back to stance — log minutes as reps'],
+  ['round_kick', 'Roundhouse Kick Drill', 'core', 'glutes, obliques', 'bodyweight', 'conditioning', 'Step out at 45°, pivot on the standing foot|Swing the hip through, strike with the shin|Return to guard — slow and controlled, log minutes'],
+  ['heavy_bag', 'Heavy Bag Rounds', 'cardio', 'shoulders, core', 'bag', 'conditioning', 'Stay in stance, hands back to guard after every strike|Mix punches, knees and kicks|Log minutes as reps'],
+  ['sprawl', 'Sprawl (no jump)', 'cardio', 'chest, core', 'bodyweight', 'conditioning', 'From stance, drop hands to the floor|Step both feet back into a plank, hips low|Step back up to stance — log reps'],
+  ['wall_sit', 'Wall Sit', 'quads', 'glutes', 'bodyweight', 'squat', 'Back flat against a wall|Slide down until thighs are parallel|Hold — log seconds as reps'],
 ];
 
-export const TIMED = new Set(['plank', 'side_plank', 'treadmill_walk', 'treadmill_run', 'bike', 'jump_rope', 'shadow_box', 'farmer_walk', 'mountain_climber']);
+export const TIMED = new Set(['plank', 'side_plank', 'treadmill_walk', 'treadmill_run', 'bike', 'jump_rope', 'shadow_box', 'farmer_walk', 'mountain_climber', 'thai_knees', 'teep_kick', 'round_kick', 'heavy_bag', 'wall_sit']);
 export const BODYWEIGHT_EQ = new Set(['bodyweight']);
 
 export const EXERCISES = RAW.map(([id, name, muscle, secondary, equipment, pattern, cues]) => ({
@@ -102,13 +109,46 @@ export const EXERCISES = RAW.map(([id, name, muscle, secondary, equipment, patte
 }));
 
 export const MUSCLES = ['chest', 'back', 'shoulders', 'biceps', 'triceps', 'quads', 'hamstrings', 'glutes', 'calves', 'core', 'forearms', 'cardio'];
-export const EQUIPMENT = ['barbell', 'dumbbell', 'machine', 'cable', 'kettlebell', 'band', 'bodyweight', 'cardio'];
+export const EQUIPMENT = ['barbell', 'dumbbell', 'machine', 'cable', 'kettlebell', 'band', 'bodyweight', 'cardio', 'bag'];
+
+// Home equipment builder: tickable items
+export const EQUIP_ITEMS = [
+  ['dumbbell', 'Dumbbells'], ['bench', 'Bench (or sturdy chair)'], ['barbell', 'Barbell & plates'], ['pullup_bar', 'Pull-up / dip bar'],
+  ['kettlebell', 'Kettlebell'], ['band', 'Resistance bands'], ['cable', 'Cable machine'], ['machine', 'Leg / chest machines'],
+  ['treadmill', 'Treadmill'], ['bike', 'Exercise bike'], ['rope', 'Jump rope'], ['bag', 'Punching bag'],
+];
+// Extra things an exercise needs beyond its equipment category
+export const NEEDS = {
+  bb_bench: 'bench', incline_bb: 'bench', db_bench: 'bench', incline_db: 'bench', db_row_2: 'bench', hip_thrust: 'bench',
+  pullup: 'pullup_bar', chinup: 'pullup_bar', hanging_raise: 'pullup_bar', dips: 'pullup_bar',
+  treadmill_walk: 'treadmill', treadmill_run: 'treadmill', bike: 'bike', jump_rope: 'rope', heavy_bag: 'bag',
+};
 
 export const EQUIPMENT_PROFILES = {
-  gym: { label: 'Full gym', desc: 'Barbells, machines, cables', eq: ['barbell', 'dumbbell', 'machine', 'cable', 'kettlebell', 'band', 'bodyweight', 'cardio'] },
-  home_db: { label: 'Home – dumbbells', desc: 'Dumbbells, bench/chair, bodyweight', eq: ['dumbbell', 'bodyweight', 'band', 'cardio'] },
-  bodyweight: { label: 'Bodyweight only', desc: 'No equipment needed', eq: ['bodyweight'] },
+  gym: { label: 'Full gym', desc: 'Barbells, machines, cables', items: ['dumbbell', 'bench', 'barbell', 'pullup_bar', 'kettlebell', 'band', 'cable', 'machine', 'treadmill', 'bike', 'rope', 'bag'] },
+  home_db: { label: 'Home – dumbbells', desc: 'Dumbbells, bench/chair, bodyweight', items: ['dumbbell', 'bench', 'band', 'treadmill'] },
+  bodyweight: { label: 'Bodyweight only', desc: 'No equipment needed', items: [] },
+  custom: { label: 'My equipment', desc: 'Pick exactly what you own', items: [] },
 };
+export function canDo(e, items) {
+  const set = items instanceof Set ? items : new Set(items);
+  if (NEEDS[e.id] && !set.has(NEEDS[e.id])) return false;
+  if (e.equipment === 'bodyweight') return true;
+  if (e.equipment === 'cardio') return !!NEEDS[e.id] ? set.has(NEEDS[e.id]) : true;
+  return set.has(e.equipment);
+}
+
+// Ready-made fight conditioning sessions
+export const FIGHT_ROUTINES = [
+  { id: 'fight_cond', name: 'Fight Conditioning', focus: 'Rounds + strength endurance', exercises: [
+    { exId: 'shadow_box', sets: 3, reps: [3, 3], rest: 60 }, { exId: 'thai_knees', sets: 3, reps: [1, 2], rest: 45 },
+    { exId: 'goblet_squat', sets: 3, reps: [12, 15], rest: 60 }, { exId: 'pushup', sets: 3, reps: [10, 20], rest: 60 },
+    { exId: 'sprawl', sets: 3, reps: [8, 12], rest: 45 }, { exId: 'plank', sets: 3, reps: [30, 60], rest: 45 } ] },
+  { id: 'fight_muaythai', name: 'Muay Thai Skills', focus: 'Kicks, knees, teeps, core', exercises: [
+    { exId: 'shadow_box', sets: 2, reps: [3, 3], rest: 60 }, { exId: 'teep_kick', sets: 3, reps: [1, 2], rest: 45 },
+    { exId: 'round_kick', sets: 3, reps: [1, 2], rest: 45 }, { exId: 'thai_knees', sets: 3, reps: [1, 2], rest: 45 },
+    { exId: 'russian_twist', sets: 3, reps: [20, 30], rest: 45 }, { exId: 'side_plank', sets: 2, reps: [30, 45], rest: 30 } ] },
+];
 
 export const GOALS = {
   fat_loss: { label: 'Lose fat', desc: 'Keep muscle, burn fat, build conditioning', sets: 3, reps: [12, 15], rest: 60, finisher: true },

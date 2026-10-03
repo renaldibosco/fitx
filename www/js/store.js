@@ -1,13 +1,19 @@
-// Noora — state, persistence, domain logic
-import { EXERCISES, PATTERN_PREFS, SPLITS, GOALS, EQUIPMENT_PROFILES, TIMED } from './data.js';
+// NrXFitz — state, persistence, domain logic
+import { EXERCISES, PATTERN_PREFS, SPLITS, GOALS, EQUIPMENT_PROFILES, TIMED, canDo, FIGHT_ROUTINES } from './data.js';
 
 const KEY = 'fitx.v1';
-export const VERSION = '1.0.0';
+export const VERSION = '2.0.0';
 
 const defaults = () => ({
   version: 1,
   profile: null,
-  settings: { unit: 'kg', rest: 0, sound: true, vibrate: true, notify: true, barKg: 20 },
+  settings: { unit: 'kg', rest: 0, sound: true, vibrate: true, notify: true, barKg: 20, theme: 'lime', lang: 'en', aiKey: '', aiModel: 'claude-haiku-4-5', aiSpeak: true, autoWarmup: false },
+  reminders: { on: false, time: '18:00', days: [0, 2, 4] },
+  habits: {}, // 'YYYY-MM-DD' -> { water, protein }
+  cardio: [], // { id, date, type, mins, km, steps, kcal }
+  measurements: [], // { date, waist, chest, arm, thigh, hips, neck } (cm)
+  achievements: {}, // id -> ts unlocked
+  deloadUntil: 0, lastDeload: 0, deloadDismissed: 0,
   program: null,
   programIndex: 0,
   routines: [],
@@ -22,7 +28,7 @@ export let S = load();
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return Object.assign(defaults(), JSON.parse(raw));
+    if (raw) { const d = defaults(); const o = JSON.parse(raw); return Object.assign(d, o, { settings: { ...d.settings, ...(o.settings || {}) }, reminders: { ...d.reminders, ...(o.reminders || {}) } }); }
   } catch (e) { console.warn('load failed', e); }
   return defaults();
 }
@@ -33,7 +39,7 @@ export function save(now = false) {
   const write = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { console.warn(e); } };
   if (now) write(); else saveTimer = setTimeout(write, 250);
 }
-export function replaceState(next) { S = Object.assign(defaults(), next); save(true); }
+export function replaceState(next) { const d = defaults(); S = Object.assign(d, next, { settings: { ...d.settings, ...(next.settings || {}) }, reminders: { ...d.reminders, ...(next.reminders || {}) } }); save(true); }
 export function resetAll() { S = defaults(); save(true); }
 
 // ---------- ids / dates
@@ -140,6 +146,7 @@ export function suggestion(exId, target) {
   if (allTop && topW > 0 && !isTimed(exId)) {
     const e = ex(exId);
     const stepKg = unit() === 'lb' ? (e.equipment === 'dumbbell' ? 5 : 5) / LB : (e.equipment === 'dumbbell' ? 2 : 2.5);
+    if (e.equipment === 'dumbbell' && S.profile?.dbMax && topW + stepKg > S.profile.dbMax + 0.01) return { up: false, w: topW, text: `You're maxed on your dumbbells — add 2 reps per set or lower for 3 slow seconds` };
     return { up: true, w: topW + stepKg, text: `You hit ${hi}+ reps on every set last time — go up to ${wFmt(topW + stepKg)} ${unit()}` };
   }
   const anyLow = last.sets.some(s => +s.r < lo);
@@ -158,7 +165,7 @@ export function restDefault() { return S.settings.rest || goalOf().rest; }
 export function generateProgram(profile) {
   const days = Math.min(6, Math.max(2, +profile.days || 3));
   const split = SPLITS[days];
-  const eq = new Set(EQUIPMENT_PROFILES[profile.equipment]?.eq || EQUIPMENT_PROFILES.gym.eq);
+  const items = new Set(profileItems(profile));
   const g = GOALS[profile.goal] || GOALS.recomp;
   const level = profile.level || 'beginner';
   const byId = Object.fromEntries(EXERCISES.map(e => [e.id, e]));
@@ -167,7 +174,7 @@ export function generateProgram(profile) {
     let list = [];
     for (const slot of slots) {
       const prefs = PATTERN_PREFS[slot] || [];
-      const pick = prefs.find(id => byId[id] && eq.has(byId[id].equipment) && !used.has(id));
+      const pick = prefs.find(id => byId[id] && canDo(byId[id], items) && !used.has(id));
       if (!pick) continue;
       used.add(pick);
       const compound = ['squat', 'squat2', 'hinge', 'hinge2', 'h_push', 'v_push', 'h_pull', 'v_pull'].includes(slot);
@@ -179,8 +186,8 @@ export function generateProgram(profile) {
     }
     if (level === 'beginner' && list.length > 5) list = list.slice(0, 5);
     if (g.finisher) {
-      const fin = (PATTERN_PREFS.cardio).find(id => byId[id] && eq.has(byId[id].equipment) && !used.has(id))
-        || (PATTERN_PREFS.conditioning).find(id => byId[id] && eq.has(byId[id].equipment) && !used.has(id));
+      const fin = (PATTERN_PREFS.cardio).find(id => byId[id] && canDo(byId[id], items) && !used.has(id))
+        || (PATTERN_PREFS.conditioning).find(id => byId[id] && canDo(byId[id], items) && !used.has(id));
       if (fin) list.push({ exId: fin, sets: 1, reps: [10, 20], rest: 30 });
     }
     return { id: 'p' + i + '_' + uid(), name, focus, exercises: list };
@@ -193,7 +200,7 @@ export function nextProgramDay() {
   return S.program.days[S.programIndex % S.program.days.length];
 }
 export function findRoutine(id) {
-  return S.program?.days.find(d => d.id === id) || S.routines.find(r => r.id === id) || null;
+  return S.program?.days.find(d => d.id === id) || S.routines.find(r => r.id === id) || FIGHT_ROUTINES.find(r => r.id === id) || null;
 }
 
 // ---------- workout lifecycle
@@ -207,9 +214,13 @@ export function buildExercise(exId, target) {
   const t = target ? { sets: target.sets, reps: target.reps, rest: target.rest } : { sets: 3, reps: [8, 12], rest: restDefault() };
   const sug = suggestion(exId, t);
   const last = lastPerformance(exId);
-  const w = sug?.w ?? (last ? last.bestW : '');
-  const sets = Array.from({ length: t.sets }, () => ({ w: w || '', r: '', done: false, type: 'n' }));
-  return { exId, target: t, rest: t.rest || restDefault(), sets };
+  let w = sug?.w ?? (last ? last.bestW : '');
+  let n = t.sets;
+  if (inDeload()) { if (w) w = roundW(w * 0.6, exId); n = Math.max(2, n - 1); }
+  const sets = Array.from({ length: n }, () => ({ w: w || '', r: '', done: false, type: 'n' }));
+  const e = { exId, target: t, rest: t.rest || restDefault(), sets };
+  if (S.settings.autoWarmup && w && ['squat', 'hinge', 'h_push', 'v_push', 'h_pull'].includes(ex(exId).pattern) && !isTimed(exId)) addWarmups(e);
+  return e;
 }
 export function finishWorkout() {
   const a = S.active; if (!a) return null;
@@ -262,4 +273,108 @@ export function muscleSets(sessions) {
 export function latestWeight() {
   if (S.bodyweight.length) return [...S.bodyweight].sort((a, b) => a.date.localeCompare(b.date)).at(-1).kg;
   return S.profile?.weightKg || null;
+}
+
+// ---------- equipment
+export function profileItems(p = S.profile) {
+  if (!p) return EQUIPMENT_PROFILES.gym.items;
+  if (p.equipment === 'custom') return p.items || [];
+  return EQUIPMENT_PROFILES[p.equipment]?.items || EQUIPMENT_PROFILES.gym.items;
+}
+
+// ---------- weights helpers
+export function roundW(kg, exId) {
+  const e = ex(exId); const step = unit() === 'lb' ? (e.equipment === 'barbell' ? 5 : 2.5) / LB : (e.equipment === 'dumbbell' ? 1 : 2.5);
+  return Math.max(0, Math.round(kg / step) * step);
+}
+export function addWarmups(e) {
+  const work = +(e.sets.find(s => s.type !== 'w')?.w) || 0;
+  if (!work) return false;
+  e.sets = e.sets.filter(s => !(s.type === 'w' && !s.done));
+  const scheme = work >= 40 ? [[0.4, 10], [0.6, 6], [0.8, 3]] : work >= 15 ? [[0.5, 10], [0.75, 5]] : [[0.6, 8]];
+  const ws = scheme.map(([k, r]) => ({ w: roundW(work * k, e.exId), r: String(r), done: false, type: 'w' })).filter(s => s.w > 0);
+  e.sets.unshift(...ws);
+  return ws.length > 0;
+}
+
+// ---------- deload
+export const inDeload = () => S.deloadUntil > Date.now();
+export function stalledExercises() {
+  const out = [];
+  const ids = new Set(); for (const s of S.sessions) for (const e of s.exercises) ids.add(e.exId);
+  for (const id of ids) {
+    if (isTimed(id)) continue;
+    const h = exHistory(id).filter(x => x.best1rm > 0);
+    if (h.length < 4) continue;
+    const last4 = h.slice(-4);
+    if (last4[3].ts - last4[0].ts < 14 * 864e5) continue;
+    const base = last4[0].best1rm;
+    if (Math.max(...last4.slice(1).map(x => x.best1rm)) <= base * 1.01) out.push(id);
+  }
+  return out;
+}
+export function deloadSuggestion() {
+  if (inDeload()) return null;
+  if (Date.now() - (S.lastDeload || 0) < 35 * 864e5) return null;
+  if (Date.now() - (S.deloadDismissed || 0) < 10 * 864e5) return null;
+  const st = stalledExercises();
+  return st.length >= 2 ? st : null;
+}
+export function startDeload() { S.deloadUntil = Date.now() + 7 * 864e5; S.lastDeload = Date.now(); save(true); }
+
+// ---------- habits
+export function habit(day = todayKey()) { return S.habits[day] || (S.habits[day] = { water: 0, protein: 0 }); }
+export function proteinTarget() {
+  const p = S.profile; if (!p) return 120;
+  const kg = latestWeight() || p.weightKg || 70; const hM = (p.heightCm || 175) / 100; const bmi = kg / (hM * hM);
+  const ref = bmi > 27 ? 25 * hM * hM + 0.25 * (kg - 25 * hM * hM) : kg;
+  return Math.round(ref * 2 / 5) * 5;
+}
+export const WATER_GOAL = 12; // glasses of 250 ml
+
+// ---------- cardio (MET estimates)
+export const CARDIO_TYPES = {
+  walk: { label: 'Walk', met: 3.5, icon: 'walk' }, incline: { label: 'Incline walk', met: 6, icon: 'walk' }, run: { label: 'Run', met: 9.8, icon: 'run' },
+  cycle: { label: 'Cycling', met: 7, icon: 'bike' }, boxing: { label: 'Boxing / Muay Thai', met: 9, icon: 'fist' }, steps: { label: 'Daily steps', met: 0, icon: 'walk' },
+};
+export function cardioKcal(type, mins, steps) {
+  const kg = latestWeight() || 70;
+  if (type === 'steps') return Math.round((steps || 0) * 0.04 * kg / 70);
+  return Math.round((CARDIO_TYPES[type]?.met || 5) * kg * (mins || 0) / 60);
+}
+
+// ---------- achievements
+const totalVolume = () => S.sessions.reduce((a, s) => a + (s.volume || 0), 0);
+const prCount = () => S.sessions.reduce((a, s) => a + (s.prs?.length || 0), 0);
+const heaviest = () => S.sessions.reduce((m, s) => Math.max(m, ...s.exercises.flatMap(e => workingSets(e.sets).map(x => +x.w || 0)), 0), 0);
+const waterDays = () => Object.values(S.habits).filter(h => h.water >= WATER_GOAL).length;
+export const ACHIEVEMENTS = [
+  ['first', 'First Rep', 'Log your first workout', '🥊', () => S.sessions.length >= 1],
+  ['w5', 'Warming Up', '5 workouts logged', '🔥', () => S.sessions.length >= 5],
+  ['w10', 'Committed', '10 workouts logged', '💪', () => S.sessions.length >= 10],
+  ['w25', 'Regular', '25 workouts logged', '⚡', () => S.sessions.length >= 25],
+  ['w50', 'Iron Habit', '50 workouts logged', '🏋️', () => S.sessions.length >= 50],
+  ['w100', 'Centurion', '100 workouts logged', '👑', () => S.sessions.length >= 100],
+  ['s2', 'Two-Week Streak', 'Train 2 weeks in a row', '📆', () => streakWeeks() >= 2],
+  ['s4', 'Monthly Machine', '4-week streak', '🗓️', () => streakWeeks() >= 4],
+  ['s12', 'Unstoppable', '12-week streak', '🚀', () => streakWeeks() >= 12],
+  ['pr1', 'Record Breaker', 'Set your first PR', '🏆', () => prCount() >= 1],
+  ['pr10', 'PR Machine', 'Set 10 PRs', '🥇', () => prCount() >= 10],
+  ['v10k', '10 Tonnes', 'Lift 10,000 kg in total', '🧱', () => totalVolume() >= 10000],
+  ['v100k', '100 Tonnes', 'Lift 100,000 kg in total', '🏔️', () => totalVolume() >= 100000],
+  ['h20', 'Heavy Hands', 'Lift 20 kg in one set', '🔩', () => heaviest() >= 20],
+  ['h100', 'Triple Digits', 'Lift 100 kg in one set', '💯', () => heaviest() >= 100],
+  ['water7', 'Hydrated', 'Hit your water goal 7 days', '💧', () => waterDays() >= 7],
+  ['cardio10', 'Engine Room', 'Log 10 cardio sessions', '❤️', () => S.cardio.length >= 10],
+  ['fight', 'Fighter', 'Finish a Fight Mode session', '🥋', () => (S.fightDone || 0) >= 1],
+  ['early', 'Early Bird', 'Train before 7 am', '🌅', () => S.sessions.some(s => new Date(s.start).getHours() < 7)],
+  ['measure', 'Measured Up', 'Log body measurements', '📏', () => S.measurements.length >= 1],
+  ['coach', 'Curious Mind', 'Ask the AI coach a question', '🎙️', () => (S.coachAsked || 0) >= 1],
+];
+// returns newly unlocked achievements
+export function checkAchievements() {
+  const fresh = [];
+  for (const a of ACHIEVEMENTS) if (!S.achievements[a[0]] && a[4]()) { S.achievements[a[0]] = Date.now(); fresh.push(a); }
+  if (fresh.length) save();
+  return fresh;
 }

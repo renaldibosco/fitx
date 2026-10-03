@@ -1,7 +1,8 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Noora</string>
-    <string name="title_activity_main">Noora</string>
+    <string name="app_name">NrXFitz</string>
+    <string name="title_activity_main">NrXFitz</string>
     <string name="package_name">com.renaldibosco.fitx</string>
     <string name="custom_url_scheme">com.renaldibosco.fitx</string>
+    <string name="widget_desc">Your streak and next workout</string>
 </resources>

@@ -1,7 +1,7 @@
 {
   "name": "fitx",
   "version": "1.0.0",
-  "description": "FitX — professional gym training app for Android",
+  "description": "FitX \u2014 professional gym training app for Android",
   "scripts": {
     "sync": "cap sync android",
     "serve": "python3 -m http.server 8080 -d www"
@@ -18,12 +18,15 @@
   },
   "homepage": "https://github.com/renaldibosco/fitx#readme",
   "dependencies": {
+    "@capacitor-community/speech-recognition": "^7.0.1",
+    "@capacitor-community/text-to-speech": "^6.1.0",
     "@capacitor/android": "^7.6.9",
     "@capacitor/app": "^7.1.2",
     "@capacitor/core": "^7.6.9",
     "@capacitor/filesystem": "^7.1.9",
     "@capacitor/haptics": "^7.0.5",
     "@capacitor/local-notifications": "^7.0.7",
+    "@capacitor/preferences": "^7.0.4",
     "@capacitor/share": "^7.0.4",
     "@capacitor/status-bar": "^7.0.6",
     "@fontsource/barlow-condensed": "^5.3.0"
@@ -31,5 +34,6 @@
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^7.6.9"
-  }
+  },
+  "type": "module"
 }
