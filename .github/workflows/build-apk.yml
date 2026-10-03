@@ -47,20 +47,20 @@ jobs:
             tail -60 build.log
             exit 1
           fi
-          cp app/build/outputs/apk/release/app-release.apk ../FitX.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Noora.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: FitX-apk
-          path: FitX.apk
+          name: Noora-apk
+          path: Noora.apk
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
-          name: FitX v1.0.${{ github.run_number }}
+          name: Noora v1.0.${{ github.run_number }}
           body: |
-            Download **FitX.apk** below and open it on your phone to install.
+            Download **Noora.apk** below and open it on your phone to install.
             Updates install over the previous version — your workouts are kept.
-          files: FitX.apk
+          files: Noora.apk
           make_latest: true

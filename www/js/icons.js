@@ -1,4 +1,4 @@
-// FitX — icons (stroke icons, 24px grid)
+// Noora — icons (stroke icons, 24px grid)
 const P = {
   home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/>',
   plan: '<rect x="3" y="4" width="18" height="17" rx="3"/><path d="M8 2v4M16 2v4M3 10h18M8 14h3M8 17.5h6"/>',

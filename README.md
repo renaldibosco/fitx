@@ -1,4 +1,4 @@
-# FitX
+# Noora
 
 A professional gym-training app for Android — personalised programs, a fast workout logger with rest timer, and progress tracking. Works fully offline; all data stays on the phone.
 
@@ -14,7 +14,7 @@ A professional gym-training app for Android — personalised programs, a fast wo
 
 ## Install
 
-Grab `FitX.apk` from the latest [release](https://github.com/renaldibosco/fitx/releases/latest) and open it on your phone. New releases install over the old one and keep your data.
+Grab `Noora.apk` from the latest [release](https://github.com/renaldibosco/fitx/releases/latest) and open it on your phone. New releases install over the old one and keep your data.
 
 ## Build
 

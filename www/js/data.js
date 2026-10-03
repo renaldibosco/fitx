@@ -1,4 +1,4 @@
-// FitX — exercise library and program templates
+// Noora — exercise library and program templates
 // Row: [id, name, primary muscle, secondary muscles, equipment, pattern, coaching cues ("|" separated)]
 const RAW = [
   // ---- Chest / horizontal push

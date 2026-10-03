@@ -1,4 +1,4 @@
-// FitX — tiny SVG charts
+// Noora — tiny SVG charts
 const W = 320, H = 170, PAD = { l: 34, r: 10, t: 12, b: 24 };
 
 function niceTicks(min, max, n = 4, int = false) {

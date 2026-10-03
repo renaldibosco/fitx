@@ -1,4 +1,4 @@
-// FitX — native bridges with web fallbacks
+// Noora — native bridges with web fallbacks
 const Cap = window.Capacitor;
 export const isNative = !!(Cap && Cap.isNativePlatform && Cap.isNativePlatform());
 const plug = name => (Cap && Cap.Plugins && Cap.Plugins[name]) || null;
@@ -54,7 +54,7 @@ export async function exportJSON(filename, text) {
   const FS = plug('Filesystem'), SH = plug('Share');
   if (isNative && FS && SH) {
     const r = await FS.writeFile({ path: filename, data: text, directory: 'CACHE', encoding: 'utf8' });
-    await SH.share({ title: 'FitX backup', text: 'FitX workout backup', url: r.uri, dialogTitle: 'Save or send your backup' });
+    await SH.share({ title: 'Noora backup', text: 'Noora workout backup', url: r.uri, dialogTitle: 'Save or send your backup' });
     return true;
   }
   const blob = new Blob([text], { type: 'application/json' });

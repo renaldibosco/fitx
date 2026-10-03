@@ -1,4 +1,4 @@
-// FitX — app shell, router, screens
+// Noora — app shell, router, screens
 import * as St from './store.js';
 import { S, save, ex, wFmt, toDisp, fromDisp, unit, fmtDate, fmtDur, fmtClock, e1rm, workingSets, isTimed, bigNum } from './store.js';
 import { EXERCISES, MUSCLES, EQUIPMENT, EQUIPMENT_PROFILES, GOALS, LEVELS } from './data.js';
@@ -49,7 +49,7 @@ function renderOnboarding() {
   const s = onboardStep;
   if (s === 0) return `<div class="onb" style="position:relative">
       <div class="splash-art">${splashArt()}</div>
-      <div class="brand" style="margin-top:6px"><div class="brand-mark">${LOGO}</div><div class="brand-name">FIT<b>X</b></div></div>
+      <div class="brand" style="margin-top:6px"><div class="brand-mark">${LOGO}</div><div class="brand-name">NOO<b>RA</b></div></div>
       <div class="splash-hero">
         <div class="tiny accent">Your training system</div>
         <h1>Train<br>smarter.<br><b>Get stronger.</b></h1>
@@ -126,7 +126,7 @@ function renderToday() {
   const lw = St.latestWeight();
   const recent = [...S.sessions].sort((a, b) => b.start - a.start).slice(0, 3);
   return `<div class="screen">
-    <header class="topbar"><div class="brand" style="flex:1"><div class="brand-mark">${LOGO}</div><div class="brand-name">FIT<b>X</b></div></div><button class="icon-btn" data-go="settings">${icon('settings')}</button></header>
+    <header class="topbar"><div class="brand" style="flex:1"><div class="brand-mark">${LOGO}</div><div class="brand-name">NOO<b>RA</b></div></div><button class="icon-btn" data-go="settings">${icon('settings')}</button></header>
     <div class="muted" style="margin-top:6px">${greet},</div>
     <h1 class="display" style="font-size:38px;margin-top:2px">${esc(S.profile.name)}</h1>
 
@@ -181,7 +181,7 @@ function renderPlan() {
       ${S.routines.length ? `<div class="list">${S.routines.map(r => `<div class="item"><div class="avatar">${icon('bolt')}</div><button class="grow" style="text-align:left" data-go="routine/${r.id}"><div class="t">${esc(r.name)}</div><div class="s">${r.exercises.length} exercises</div></button><button class="btn sm primary" data-act="start-routine" data-id="${r.id}">${icon('play')}</button></div>`).join('')}</div>`
         : `<div class="card empty">${icon('bolt')}<div style="font-weight:600;color:var(--text)">Build your own routine</div><div class="small" style="margin-bottom:14px">Mix any exercises for a custom session.</div><button class="btn sm primary" data-act="new-routine">${icon('plus')} Create routine</button></div>`}
     </div>
-    <div class="section"><div class="card"><div class="row" style="align-items:flex-start">${icon('info', 'accent')}<div class="small muted"><b style="color:var(--text)">How progression works.</b> Hit the top of the rep range on every set and FitX tells you to add weight next time. Fall short and it keeps the weight until you own it.</div></div></div></div>
+    <div class="section"><div class="card"><div class="row" style="align-items:flex-start">${icon('info', 'accent')}<div class="small muted"><b style="color:var(--text)">How progression works.</b> Hit the top of the rep range on every set and Noora tells you to add weight next time. Fall short and it keeps the weight until you own it.</div></div></div></div>
   </div>`;
 }
 
@@ -388,7 +388,7 @@ function renderMore() {
       ${item('bodyweight', 'scale', 'Body weight log', `${S.bodyweight.length} entr${S.bodyweight.length === 1 ? 'y' : 'ies'}`)}
       ${item('settings', 'settings', 'Settings', 'Units, rest timer, backup')}
     </div></div>
-    <p class="faint small" style="text-align:center;margin-top:26px">FitX ${St.VERSION} · Offline-first · Made by Renaldi</p>
+    <p class="faint small" style="text-align:center;margin-top:26px">Noora ${St.VERSION} · Offline-first · Made by Renaldi</p>
   </div>`;
 }
 
@@ -473,10 +473,10 @@ function renderSettings() {
       <button class="item" data-act="regen"><div class="avatar">${icon('refresh')}</div><div class="grow"><div class="t">Rebuild program</div><div class="s">Generate a fresh plan from your profile</div></div>${icon('right', 'chev')}</button></div></div>
     <div class="section"><div class="section-head"><h2 class="display" style="font-size:18px">Data</h2></div><div class="list">
       <button class="item" data-act="export"><div class="avatar">${icon('upload')}</div><div class="grow"><div class="t">Back up data</div><div class="s">Save a file to Drive, WhatsApp or anywhere</div></div>${icon('right', 'chev')}</button>
-      <button class="item" data-act="import"><div class="avatar">${icon('download')}</div><div class="grow"><div class="t">Restore backup</div><div class="s">Load a FitX backup file</div></div>${icon('right', 'chev')}</button>
+      <button class="item" data-act="import"><div class="avatar">${icon('download')}</div><div class="grow"><div class="t">Restore backup</div><div class="s">Load a Noora backup file</div></div>${icon('right', 'chev')}</button>
       <button class="item" data-act="reset"><div class="avatar" style="color:var(--danger)">${icon('trash')}</div><div class="grow"><div class="t" style="color:var(--danger)">Reset everything</div><div class="s">Delete all workouts and start over</div></div></button></div></div>
     <input type="file" id="import-file" accept="application/json,.json" hidden>
-    <p class="faint small" style="text-align:center;margin-top:26px">FitX ${St.VERSION}</p>
+    <p class="faint small" style="text-align:center;margin-top:26px">Noora ${St.VERSION}</p>
   </div>`;
 }
 
@@ -730,8 +730,8 @@ async function act(a, d, t) {
 
     // data
     case 'export': {
-      const json = JSON.stringify({ app: 'FitX', version: St.VERSION, exportedAt: new Date().toISOString(), data: S }, null, 1);
-      try { await N.exportJSON(`fitx-backup-${St.todayKey()}.json`, json); toast('Backup ready'); } catch (err) { if (!/cancel/i.test(err?.message || '')) toast('Backup failed: ' + (err?.message || err)); }
+      const json = JSON.stringify({ app: 'Noora', version: St.VERSION, exportedAt: new Date().toISOString(), data: S }, null, 1);
+      try { await N.exportJSON(`noora-backup-${St.todayKey()}.json`, json); toast('Backup ready'); } catch (err) { if (!/cancel/i.test(err?.message || '')) toast('Backup failed: ' + (err?.message || err)); }
       break;
     }
     case 'import': document.getElementById('import-file').click(); break;
@@ -770,7 +770,7 @@ document.addEventListener('change', async e => {
   if (t.id === 'import-file' && t.files[0]) {
     try {
       const obj = JSON.parse(await t.files[0].text()); const data = obj.data || obj;
-      if (!data || !Array.isArray(data.sessions) || !data.settings) throw new Error('Not a FitX backup');
+      if (!data || !Array.isArray(data.sessions) || !data.settings) throw new Error('Not a Noora backup');
       confirmSheet('Restore backup?', `This replaces everything on this phone with the backup (${data.sessions.length} workouts).`, 'Restore', () => { St.replaceState(data); St.clearExCache(); restT = null; render(); toast('Backup restored'); }, true);
     } catch (err) { toast('Could not read file: ' + err.message); }
     t.value = '';

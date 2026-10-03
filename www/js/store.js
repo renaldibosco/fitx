@@ -1,4 +1,4 @@
-// FitX — state, persistence, domain logic
+// Noora — state, persistence, domain logic
 import { EXERCISES, PATTERN_PREFS, SPLITS, GOALS, EQUIPMENT_PROFILES, TIMED } from './data.js';
 
 const KEY = 'fitx.v1';
