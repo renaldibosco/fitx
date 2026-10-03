@@ -12,14 +12,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
@@ -37,7 +37,15 @@ jobs:
           VERSION_CODE: ${{ github.run_number }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          set +e
+          ./gradlew assembleRelease --no-daemon --console=plain > build.log 2>&1
+          code=$?
+          set -e
+          if [ $code -ne 0 ]; then
+            grep -nE "error|What went wrong|FAILED|Exception|> " build.log | grep -v "^.*Task :" | head -40 | while IFS= read -r line; do echo "::error::${line:0:900}"; done
+            tail -60 build.log
+            exit 1
+          fi
           cp app/build/outputs/apk/release/app-release.apk ../FitX.apk
 
       - uses: actions/upload-artifact@v4
